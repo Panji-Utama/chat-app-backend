@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/Panji-Utama/chat-app-backend/handlers"
 )
 
 func InitializeRouter() *gin.Engine {

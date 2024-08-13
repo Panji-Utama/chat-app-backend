@@ -1,27 +1,32 @@
 package utils
 
 import (
-    "time"
-    "github.com/dgrijalva/jwt-go"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 var jwtKey = []byte("my_secret_key")
 
 type Claims struct {
-    Username string `json:"username"`
-    jwt.StandardClaims
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	jwt.StandardClaims
 }
 
-func GenerateJWT(username string) (string, error) {
-    expirationTime := time.Now().Add(24 * time.Hour)
-    claims := &Claims{
-        Username: username,
-        StandardClaims: jwt.StandardClaims{
-            ExpiresAt: expirationTime.Unix(),
-        },
-    }
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    return token.SignedString(jwtKey)
+func GenerateJWT(id, email, username string) (string, error) {
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &Claims{
+		ID:       id,
+		Email:    email,
+		Username: username,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtKey)
 }
 
 func ValidateJWT(tokenString string) (*Claims, error) {

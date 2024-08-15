@@ -20,7 +20,6 @@ func InitializeRouter(client *mongo.Client) *gin.Engine {
         api.POST("/logout", handlers.Logout())  
     }
     
-    // WebSocket route, outside /api group if needed
     router.GET("/ws", handlers.HandleConnections)
 
     return router

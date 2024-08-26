@@ -38,6 +38,9 @@ func main() {
     }
     defer client.Disconnect(ctx)
 
+    // Initialize MongoDB client in utils package
+    utils.SetClient(client)
+
     // Initialize router
     r := router.InitializeRouter(client)
 

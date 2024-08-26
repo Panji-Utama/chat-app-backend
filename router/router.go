@@ -18,6 +18,9 @@ func InitializeRouter(client *mongo.Client) *gin.Engine {
         api.POST("/login", handlers.Login(client))
         api.POST("/register", handlers.Register(client))
         api.POST("/logout", handlers.Logout())  
+        api.GET("/users", handlers.GetUsers(client))
+        api.GET("/messages", handlers.GetMessages(client)) 
+        api.POST("/messages", handlers.SaveMessage(client))
     }
     
     router.GET("/ws", handlers.HandleConnections)

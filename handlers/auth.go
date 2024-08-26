@@ -86,3 +86,27 @@ func Logout() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 	}
 }
+
+func GetUsers(client *mongo.Client) gin.HandlerFunc {
+	usersCollection = client.Database("chat_app").Collection("users")
+
+	return func(c *gin.Context) {
+		cursor, err := usersCollection.Find(context.TODO(), bson.M{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+			return
+		}
+		defer cursor.Close(context.TODO())
+
+		var users []models.Credentials
+		for cursor.Next(context.TODO()) {
+			var user models.Credentials
+			if err := cursor.Decode(&user); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode user"})
+				return
+			}
+			users = append(users, user)
+		}
+		c.JSON(http.StatusOK, users)
+	}
+}

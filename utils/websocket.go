@@ -1,26 +1,34 @@
 package utils
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/Panji-Utama/chat-app-backend/models"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type Message struct {
-    Sender    string `json:"sender"`
-    Recipient string `json:"recipient"`
-    Message   string `json:"message"`
-}
+// Declaring the variables
+var (
+    clients   = make(map[*websocket.Conn]string) // Connected clients
+    broadcast = make(chan models.Message)        // Broadcast channel
+    upgrader  = websocket.Upgrader{
+        CheckOrigin: func(r *http.Request) bool {
+            return true
+        },
+    }
+)
 
-var clients = make(map[*websocket.Conn]string) // Connected clients and their usernames
-var broadcast = make(chan Message)             // Broadcast channel
+var messagesCollection *mongo.Collection
 
-var upgrader = websocket.Upgrader{
-    CheckOrigin: func(r *http.Request) bool {
-        return true
-    },
+// SetClient initializes the MongoDB client in this package
+func SetClient(mongoClient *mongo.Client) {
+    messagesCollection = mongoClient.Database("chat_app").Collection("messages")
 }
 
 func HandleConnections(c *gin.Context) {
@@ -30,23 +38,26 @@ func HandleConnections(c *gin.Context) {
     }
     defer ws.Close()
 
-    // Read initial message to set the username
-    var initialMessage Message
-    err = ws.ReadJSON(&initialMessage)
-    if err != nil {
-        log.Printf("Error during initial message read: %v", err)
-        return
-    }
-    clients[ws] = initialMessage.Sender
+    clients[ws] = "" // Add the connection to the list of clients
 
     for {
-        var msg Message
+        var msg models.Message
         err := ws.ReadJSON(&msg)
         if err != nil {
             log.Printf("Error reading message: %v", err)
             delete(clients, ws)
             break
         }
+        msg.Timestamp = primitive.NewDateTimeFromTime(time.Now())
+
+        // Save message to MongoDB
+        _, err = messagesCollection.InsertOne(context.TODO(), msg)
+        if err != nil {
+            log.Printf("Failed to save message: %v", err)
+            continue
+        }
+
+        // Send the message to the broadcast channel
         broadcast <- msg
     }
 }
@@ -54,14 +65,12 @@ func HandleConnections(c *gin.Context) {
 func HandleMessages() {
     for {
         msg := <-broadcast
-        for client, username := range clients {
-            if username == msg.Recipient || username == msg.Sender {
-                err := client.WriteJSON(msg)
-                if err != nil {
-                    log.Printf("Error writing message: %v", err)
-                    client.Close()
-                    delete(clients, client)
-                }
+        for client := range clients {
+            err := client.WriteJSON(msg)
+            if err != nil {
+                log.Printf("Error writing message: %v", err)
+                client.Close()
+                delete(clients, client)
             }
         }
     }
